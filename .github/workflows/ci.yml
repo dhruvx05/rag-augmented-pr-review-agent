@@ -10,6 +10,27 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: pr_review_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pr_review_db
+      QDRANT_URL: http://localhost:6333
+      OLLAMA_HOST: http://localhost:11434
+      DRY_RUN: "true"
+
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
@@ -39,4 +60,9 @@ jobs:
 
     - name: Run Pytest Suite
       run: |
-        pytest tests/
+        # Runs only tests that do NOT require live Ollama or Qdrant (not available in CI).
+        # PostgreSQL is provided via the service container above.
+        # Tests requiring Ollama/Qdrant are skipped via the -k expression below.
+        pytest tests/ -v \
+          --ignore=tests/test_verification_pipeline.py \
+          -k "not (test_review_pr_qdrant_offline_fallback or test_rag)"
