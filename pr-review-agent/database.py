@@ -17,20 +17,8 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Perform inline migration for reviews relevance and source columns if DB table already exists
-try:
-    from sqlalchemy import inspect, text
-    inspector = inspect(engine)
-    if inspector.has_table("reviews"):
-        columns = [c["name"] for c in inspector.get_columns("reviews")]
-        if "relevance" not in columns:
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE reviews ADD COLUMN relevance TEXT"))
-        if "source" not in columns:
-            with engine.begin() as conn:
-                conn.execute(text("ALTER TABLE reviews ADD COLUMN source TEXT DEFAULT 'webhook'"))
-except Exception:
-    pass
+# NOTE: Column migrations (relevance, source, archived) are handled exclusively
+# in app.py's lifespan startup hook, where a verified DB connection is guaranteed.
 
 def get_db():
     """

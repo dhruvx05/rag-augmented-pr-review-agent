@@ -429,10 +429,10 @@ def _check_qdrant_indexed_chunks(repo: str) -> int:
             }
         }
         resp = requests.post(url, json=payload, timeout=5)
-        if resp.status_code == 200:
-            return resp.json().get("result", {}).get("count", 0)
-    except Exception:
-        pass
+        resp.raise_for_status()
+        return resp.json().get("result", {}).get("count", 0)
+    except requests.RequestException as exc:
+        logger.warning(f"Qdrant chunk count unavailable for '{repo}': {exc}")
     return 0
 
 
