@@ -21,7 +21,12 @@ sleep 3
 # 2. Launch Streamlit Dashboard UI in foreground
 echo "-> Launching Streamlit Portal Dashboard on port ${PORT}..."
 cd /app
-API_URL=http://localhost:${API_PORT} python -m streamlit run dashboard.py --server.port=${PORT} --server.address=0.0.0.0
+API_URL=http://localhost:${API_PORT} python -m streamlit run dashboard.py \
+    --server.port=${PORT} \
+    --server.address=0.0.0.0 \
+    --server.headless=true \
+    --server.enableCORS=false \
+    --server.enableXsrfProtection=false
 
 # Cleanup if Streamlit exits
 kill $BACKEND_PID 2>/dev/null || true
