@@ -23,6 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY pr-review-agent/ /app/pr-review-agent/
 COPY dashboard.py /app/
 COPY index_repo.py /app/
+COPY .streamlit/ /app/.streamlit/
 COPY start.sh /app/
 RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
 
