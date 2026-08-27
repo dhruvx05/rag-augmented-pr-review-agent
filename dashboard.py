@@ -69,13 +69,13 @@ st.markdown("""
         background-color: #0b0f19;
         color: #f1f5f9;
     }
-    
+
     /* Segment titles */
     h1, h2, h3 {
         color: #f8fafc !important;
         font-family: 'Inter', -apple-system, sans-serif;
     }
-    
+
     /* Onboarding & Card styling */
     .saas-card {
         background-color: #131b2e;
@@ -92,7 +92,7 @@ st.markdown("""
         padding: 24px;
         margin-bottom: 28px;
     }
-    
+
     /* Metrics panel */
     .metric-box {
         background-color: #1e293b;
@@ -113,7 +113,7 @@ st.markdown("""
         letter-spacing: 0.5px;
         margin-top: 4px;
     }
-    
+
     /* Workflow flowcharts */
     .flowchart-step {
         background-color: #1e293b;
@@ -131,7 +131,7 @@ st.markdown("""
         color: #38bdf8;
         margin: 4px 0;
     }
-    
+
     /* Badges & Status */
     .status-dot {
         height: 10px;
@@ -335,15 +335,15 @@ if not is_github_connected or st.session_state.show_reconnect_form:
         """
         <div class="saas-card" style="padding: 16px; margin-bottom: 16px; background-color: #1a2333;">
             <p style="margin: 0; font-size: 13px; color: #94a3b8;">
-                💡 <b>How to get your PAT:</b> Go to your GitHub profile settings → <b>Developer Settings</b> → 
-                <b>Personal Access Tokens (classic)</b> → Click <b>Generate new token</b>. Select the <b>repo</b> scope 
+                💡 <b>How to get your PAT:</b> Go to your GitHub profile settings → <b>Developer Settings</b> →
+                <b>Personal Access Tokens (classic)</b> → Click <b>Generate new token</b>. Select the <b>repo</b> scope
                 (which grants full control of private/public repositories).
             </p>
         </div>
         """,
         unsafe_allow_html=True
     )
-    
+
     col_repo, col_pat = st.columns(2)
     with col_repo:
         repo_input = st.text_input(
@@ -392,7 +392,7 @@ else:
         """,
         unsafe_allow_html=True
     )
-    
+
     col_reconn, col_disc, _ = st.columns([1, 1, 4])
     with col_reconn:
         if st.button("Reconnect Repository"):
@@ -454,20 +454,20 @@ with col_rag_info:
         """,
         unsafe_allow_html=True
     )
-    
+
     # Auto-indexing loop
     if is_github_connected:
         try:
             status_resp = requests.get(f"{API_URL}/config/indexing-status").json()
             idx_status = status_resp.get("status", "idle")
             idx_chunks = status_resp.get("chunks_count", 0)
-            
+
             if idx_status == "idle" and idx_chunks == 0:
                 # Never indexed: automatically begin indexing
                 st.info("Repository has not been indexed yet. Starting indexing automatically...")
                 requests.post(f"{API_URL}/config/index")
                 st.rerun()
-                
+
             elif idx_status in ("cloning", "indexing"):
                 # Indexing is in progress, poll updates
                 status_text = "Cloning Repository..." if idx_status == "cloning" else "Extracting AST functions & generating embeddings..."
@@ -475,7 +475,7 @@ with col_rag_info:
                 st.progress(0.4 if idx_status == "cloning" else 0.75)
                 time.sleep(2)
                 st.rerun()
-                
+
             elif idx_status == "completed" or idx_chunks > 0:
                 # Indexing completed successfully
                 st.markdown(
@@ -489,11 +489,11 @@ with col_rag_info:
                     """,
                     unsafe_allow_html=True
                 )
-                
+
                 if st.button("Re-index Repository", help="Re-runs indexing to synchronize local codebase context"):
                     requests.post(f"{API_URL}/config/index")
                     st.rerun()
-                    
+
             elif idx_status == "failed":
                 st.error("Indexing failed.")
                 st.code(status_resp.get("error", "Unknown error occurred."))
@@ -526,11 +526,11 @@ with st.expander("📖 Understanding Review Verdicts & Statuses"):
     st.markdown(
         """
         Here is how the AI agent determines and displays the code review verdicts:
-        
+
         *   🟢 **`APPROVE`** — **Approved.** The code is clean, syntax is correct, Ruff linter and Bandit security scan pass with zero violations, and the LLM determines it is safe to merge.
         *   🟡 **`COMMENT_ONLY`** — **Not Approved (Neutral).** The agent left helpful comments, optimization ideas, or queries. The author should address them, but there are no critical blocking bugs.
         *   🔴 **`REQUEST_CHANGES`** — **Blocked.** The agent detected code bugs, linting failures, syntax issues, or critical security vulnerabilities (e.g. hardcoded secrets). The PR is blocked until these are resolved.
-        
+
         *Note: In the Analytics Dashboard, only the **`APPROVE`** verdict counts toward the **Approval Rate**.*
         """
     )
@@ -542,7 +542,7 @@ if is_github_connected:
         prs_resp = requests.get(f"{API_URL}/config/prs")
         if prs_resp.status_code == 200:
             prs = prs_resp.json()
-            
+
             if not prs:
                 st.markdown(
                     """
@@ -574,17 +574,17 @@ if is_github_connected:
                         """,
                         unsafe_allow_html=True
                     )
-                    
+
                     # Triggers for reviews
                     col_review, col_status = st.columns([1, 4])
                     with col_review:
                         review_btn_key = f"review_{pr['number']}"
                         is_reviewing = st.session_state.get(f"running_{pr['number']}", False)
-                        
+
                         # Disabled check
                         disable_review = not is_kb_ready or is_reviewing
                         tooltip_text = "Wait for knowledge base indexing to complete" if not is_kb_ready else "Trigger AI review analysis"
-                        
+
                         if st.button(
                             "🤖 Run Review",
                             key=review_btn_key,
@@ -593,7 +593,7 @@ if is_github_connected:
                         ):
                             st.session_state[f"running_{pr['number']}"] = True
                             st.rerun()
-                            
+
                     with col_status:
                         if is_reviewing:
                             st.markdown("⚙️ Reviewing in progress. Follow live execution below in Step 4.")
@@ -627,16 +627,16 @@ running_prs = [k for k, v in st.session_state.items() if k.startswith("running_"
 if running_prs:
     active_pr_key = running_prs[0]
     pr_num = int(active_pr_key.split("_")[1])
-    
+
     st.markdown(f"### ⚙️ Running AI Review for PR #{pr_num}")
-    
+
     # Start actual endpoint review call in the background instantly
     with st.spinner("FastAPI Backend is running analysis tasks (Ruff, Bandit, Qdrant search, qwen2.5-coder)..."):
         try:
             # Submit review trigger
             payload = {"pr_number": pr_num}
             resp = requests.post(f"{API_URL}/config/trigger-review", json=payload, timeout=45)
-            
+
             if resp.status_code == 200:
                 data = resp.json()
                 if data.get("status") == "queued":
@@ -683,7 +683,7 @@ if all_reviews:
         st.session_state.last_newest_review_id = newest_id
         st.session_state.inspector_selected_index = 0
         st.cache_data.clear()
-    
+
     selected_idx = st.selectbox(
         "Select a review record to inspect details:",
         range(len(all_reviews)),
@@ -693,7 +693,7 @@ if all_reviews:
     )
     # Persist the user's manual selection
     st.session_state.inspector_selected_index = selected_idx
-    
+
     if selected_idx is not None and selected_idx < len(all_reviews):
         row = all_reviews[selected_idx]
         st.markdown(f"**Verdict:** `{row['decision']}`")
@@ -718,36 +718,36 @@ st.markdown("Historical overview and detailed records of PR reviews rendered by 
 if config:
     show_archived = st.checkbox("Show archived reviews", value=False, help="Show soft-deleted/archived reviews in history and analytics")
     reviews_list = get_all_reviews(include_archived=show_archived)
-    
+
     if reviews_list:
         df_rev = pd.DataFrame(reviews_list)
         df_rev["created_at"] = pd.to_datetime(df_rev["created_at"])
-        
+
         # Local UI Filtering
         repos_filter = ["All"] + sorted(df_rev["repo"].unique().tolist())
         verdicts_filter = ["All"] + sorted(df_rev["decision"].unique().tolist())
-        
+
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             sel_repo = st.selectbox("Repository Filter:", repos_filter)
         with col_f2:
             sel_verd = st.selectbox("Verdict Filter:", verdicts_filter)
-            
+
         filtered_rev = df_rev.copy()
         if sel_repo != "All":
             filtered_rev = filtered_rev[filtered_rev["repo"] == sel_repo]
         if sel_verd != "All":
             filtered_rev = filtered_rev[filtered_rev["decision"] == sel_verd]
-            
+
         total_count = len(filtered_rev)
-        
+
         # Fetch GitHub state for visible rows if not cached
         for _, row in filtered_rev.iterrows():
             key = (row["repo"], int(row["pr_number"]))
             if key not in st.session_state.pr_status_cache:
                 token_to_use = st.session_state.get("connected_token") if is_github_connected else GITHUB_TOKEN
                 st.session_state.pr_status_cache[key] = fetch_pr_status(row["repo"], int(row["pr_number"]), token_to_use)
-        
+
         # Calculate rates
         if total_count > 0:
             approves = len(filtered_rev[filtered_rev["decision"] == "APPROVE"])
@@ -756,7 +756,7 @@ if config:
             app_rate = (approves / total_count) * 100
         else:
             approves = comments = changes = app_rate = 0
-            
+
         # Display professional metrics cards
         col_m1, col_m2, col_m3, col_m4 = st.columns(4)
         with col_m1:
@@ -767,7 +767,7 @@ if config:
             st.markdown(f'<div class="metric-box" style="border-left-color: #f59e0b;"><div class="metric-num" style="color: #f59e0b;">{comments}</div><div class="metric-lbl">Comment Only</div></div>', unsafe_allow_html=True)
         with col_m4:
             st.markdown(f'<div class="metric-box" style="border-left-color: #ef4444;"><div class="metric-num" style="color: #ef4444;">{changes}</div><div class="metric-lbl">Request Changes</div></div>', unsafe_allow_html=True)
-            
+
         st.markdown("### 📊 Decision Distribution")
         if total_count > 0:
             import altair as alt
@@ -779,7 +779,7 @@ if config:
                 tooltip=["Verdict", "Count"]
             ).properties(height=350)
             st.altair_chart(chart, use_container_width=True)
-            
+
             # Review records listing
             col_tbl_hdr, col_tbl_btn = st.columns([4, 1])
             with col_tbl_hdr:
@@ -815,7 +815,7 @@ if config:
                     lambda row: f"🧪 [TEST] {row['repo']}" if row.get('source') == 'batch_test' else row['repo'],
                     axis=1
                 )
-            
+
             # Populate Live PR Status column
             def get_pr_status_badge(status_str: str) -> str:
                 if status_str == "merged":
@@ -846,7 +846,7 @@ if config:
                     "created_at": "Timestamp"
                 }
             )
-            
+
 
         else:
             st.info("No records match the filter criteria.")

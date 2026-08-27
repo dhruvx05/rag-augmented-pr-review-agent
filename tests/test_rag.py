@@ -44,7 +44,7 @@ def test_review_pr_qdrant_offline_fallback(mock_get, mock_post):
     assert verdict["summary"] == "offline test"
     assert verdict["reason"] == "went fine"
     assert verdict["security_flags"] == []
-    
+
     # Assert get was attempted to check Qdrant liveness
     qdrant_check_call = any(
         "collections/pr_reviews" in call[0][0] for call in mock_get.call_args_list

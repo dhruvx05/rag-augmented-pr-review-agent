@@ -78,6 +78,6 @@ def test_process_pr_review_aborts_on_duplicate_commit(mock_fetch_diff, mock_revi
     # Since it is a duplicate, the background task should hit IntegrityError (or fetch early check)
     # and abort without posting comments to GitHub
     mock_post_comment.assert_not_called()
-    
+
     # Assert key was removed from in-progress commits set
     assert idempotency_key not in _in_progress_commits

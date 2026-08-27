@@ -20,11 +20,11 @@ def test_db():
     # SQLite memory database
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
+
     # Create all tables (including reviews defined in models)
     import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
-    
+
     db = TestingSessionLocal()
     try:
         yield db
@@ -42,7 +42,7 @@ def client(test_db):
             yield test_db
         finally:
             pass
-            
+
     app.dependency_overrides[get_db] = override_get_db
     from fastapi.testclient import TestClient
     with TestClient(app) as test_client:

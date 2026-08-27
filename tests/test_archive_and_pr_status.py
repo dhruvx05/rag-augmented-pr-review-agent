@@ -24,10 +24,10 @@ def test_archive_reviews_endpoints(client):
         poolclass=StaticPool
     )
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    
+
     # Create tables
     Base.metadata.create_all(bind=engine)
-    
+
     test_db = TestingSessionLocal()
     try:
         with patch("database.SessionLocal", return_value=test_db):
@@ -90,7 +90,7 @@ def test_fetch_pr_status_success_cases(mock_get):
     mock_resp_merged = Mock()
     mock_resp_merged.status_code = 200
     mock_resp_merged.json.return_value = {"state": "closed", "merged": True}
-    
+
     mock_get.return_value = mock_resp_merged
     res = fetch_pr_status("owner/repo", 42, "mock-token")
     assert res == "merged"
@@ -99,7 +99,7 @@ def test_fetch_pr_status_success_cases(mock_get):
     mock_resp_closed = Mock()
     mock_resp_closed.status_code = 200
     mock_resp_closed.json.return_value = {"state": "closed", "merged": False}
-    
+
     mock_get.return_value = mock_resp_closed
     res = fetch_pr_status("owner/repo", 43, "mock-token")
     assert res == "closed"
@@ -108,7 +108,7 @@ def test_fetch_pr_status_success_cases(mock_get):
     mock_resp_open = Mock()
     mock_resp_open.status_code = 200
     mock_resp_open.json.return_value = {"state": "open", "merged": False}
-    
+
     mock_get.return_value = mock_resp_open
     res = fetch_pr_status("owner/repo", 44, "mock-token")
     assert res == "open"
@@ -119,7 +119,7 @@ def test_fetch_pr_status_graceful_failures(mock_get):
     # Mock HTTP error (e.g. rate limit 403 or unauthorized)
     mock_resp_fail = Mock()
     mock_resp_fail.status_code = 403
-    
+
     mock_get.return_value = mock_resp_fail
     res = fetch_pr_status("owner/repo", 45, "mock-token")
     assert res == "unknown"

@@ -75,7 +75,7 @@ def chunk_file(file_path: str) -> list[dict]:
         tree = ast.parse(code)
         chunker = PythonASTChunker(code, file_path)
         chunker.visit(tree)
-        
+
         # If no function or class definitions were found, return the whole file as a chunk
         if not chunker.chunks:
             return [{
@@ -85,7 +85,7 @@ def chunk_file(file_path: str) -> list[dict]:
                 "end_line": len(code.splitlines()),
                 "content": code
             }]
-            
+
         return chunker.chunks
     except Exception as e:
         # Fall back to whole file if AST parsing fails (e.g. syntax error in testing/draft code)
@@ -195,15 +195,15 @@ def main():
     parser.add_argument("--collection", default="pr_reviews", help="Qdrant collection name")
     parser.add_argument("--qdrant-url", help="Qdrant REST API URL. Reads from environment or defaults to localhost.")
     parser.add_argument("--ollama-host", help="Ollama Host URL. Reads from environment or defaults to localhost.")
-    
+
     args = parser.parse_args()
-    
+
     # 1. Establish configurations
     repo_path = os.path.abspath(args.repo_path)
     if not os.path.isdir(repo_path):
         print(f"[Error] Repository directory '{repo_path}' does not exist.", file=sys.stderr)
         sys.exit(1)
-        
+
     repo_name = args.repo_name or os.path.basename(repo_path)
     qdrant_url = args.qdrant_url or os.environ.get("QDRANT_URL", "http://localhost:6333")
     ollama_host = args.ollama_host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -248,7 +248,7 @@ def main():
             if f.endswith((".py", ".md", ".txt", ".json", "Dockerfile")):
                 full_path = os.path.join(root, f)
                 rel_path = os.path.relpath(full_path, repo_path).replace("\\", "/")
-                
+
                 # Retrieve chunks for this file
                 chunks = chunk_file(full_path)
                 for chunk in chunks:
@@ -267,7 +267,7 @@ def main():
             # Create a nice context representation for embedding: include file path and name to reinforce context
             embed_prompt = f"File: {chunk['rel_path']}\nEntity: {chunk['name']}\nContent:\n{chunk['content']}"
             vector = get_embedding(embed_prompt, ollama_host)
-            
+
             point = {
                 "id": str(uuid.uuid4()),
                 "vector": vector,
@@ -281,14 +281,14 @@ def main():
                 }
             }
             points.append(point)
-            
+
             # Upsert in batches
             if len(points) >= batch_size:
                 upsert_chunks_to_qdrant(qdrant_url, args.collection, points)
                 processed_count += len(points)
                 print(f"   Indexed {processed_count}/{len(all_chunks)} chunks...")
                 points = []
-                
+
         except Exception as e:
             print(f"[Warning] Failed to index chunk '{chunk['name']}' in {chunk['rel_path']}: {e}")
 

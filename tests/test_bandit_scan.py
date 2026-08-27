@@ -16,13 +16,13 @@ import random
 def exploit(data):
     # B105: Hardcoded password
     secret = "my_admin_password_123"
-    
+
     # B602: shell=True execution
     subprocess.call("echo " + data, shell=True)
-    
+
     # B301: pickle deserialization
     pickle.loads(data)
-    
+
     # B311: standard pseudo-random generator
     key = random.random()
     return key

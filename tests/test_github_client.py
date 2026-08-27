@@ -16,7 +16,7 @@ def test_fetch_pr_diff_success(mock_get):
     mock_get.return_value = mock_resp
 
     files = fetch_pr_diff("owner/repo", 1, "test_token")
-    
+
     assert len(files) == 2
     assert files[0]["file_path"] == "app.py"
     assert files[0]["patch_text"] == "+++ new changes"

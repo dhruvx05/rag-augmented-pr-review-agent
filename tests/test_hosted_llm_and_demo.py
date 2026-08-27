@@ -40,7 +40,7 @@ def test_groq_llm_dispatch_format(mock_post):
 
     assert msg["role"] == "assistant"
     assert "Groq test" in content
-    
+
     # Verify post URL and headers
     called_url = mock_post.call_args[0][0]
     called_headers = mock_post.call_args[1]["headers"]
@@ -94,6 +94,6 @@ def test_react_loop_duplicate_tool_call_fallback(mock_fallback, mock_call_llm):
 
     diff_files = [{"file_path": "main.py", "patch_text": "+ print('hello')"}]
     verdict = run_agentic_loop(diff_files, "+ print('hello')")
-    
+
     assert mock_fallback.called
     assert verdict["summary"] == "Fallback triggered"

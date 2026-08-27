@@ -1,0 +1,15 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = [
+    "venv",
+    ".venv",
+    "pr-review-agent/venv",
+    ".pytest_cache",
+    ".ruff_cache",
+    "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "E402", "W291", "W293"]

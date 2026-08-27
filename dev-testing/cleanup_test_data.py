@@ -20,7 +20,7 @@ def run_cleanup(confirm: bool):
         # Find rows with source = 'batch_test'
         query = db.query(Review).filter(Review.source == "batch_test")
         count = query.count()
-        
+
         if count == 0:
             print("No test data (source='batch_test') found in the database. Nothing to clean up.")
             return
@@ -39,7 +39,7 @@ def run_cleanup(confirm: bool):
             query.delete(synchronize_session=False)
             db.commit()
             print("Test data deleted successfully.")
-            
+
     except Exception as e:
         db.rollback()
         print(f"Error occurred during cleanup: {e}")

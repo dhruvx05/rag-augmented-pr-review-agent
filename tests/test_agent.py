@@ -53,7 +53,7 @@ def test_parse_and_validate_verdict_retry_path(mock_post):
     """
     # First call yields malformed JSON (missing braces), but mock POST returns valid JSON on retry
     malformed_initial = '{"decision": "COMMENT_ONLY", "reason": "incomplete"'
-    
+
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
@@ -65,7 +65,7 @@ def test_parse_and_validate_verdict_retry_path(mock_post):
 
     messages = [{"role": "user", "content": "original prompt"}]
     result = parse_and_validate_verdict(malformed_initial, messages)
-    
+
     # Assert retry API was invoked once
     mock_post.assert_called_once()
     assert result["decision"] == "COMMENT_ONLY"
@@ -82,7 +82,7 @@ def test_review_pr_context_validation_relevance(mock_fetch_readme, mock_get, moc
     Verify review_pr successfully passes the repository README for context validation.
     """
     mock_fetch_readme.return_value = "This repository is a Python PR Review Agent that runs ruff and bandit."
-    
+
     mock_get_response = MagicMock()
     mock_get_response.status_code = 200
     mock_get.return_value = mock_get_response
@@ -97,11 +97,11 @@ def test_review_pr_context_validation_relevance(mock_fetch_readme, mock_get, moc
     mock_post.return_value = mock_post_response
 
     diff_files = [{"file_path": "MainActivity.java", "patch_text": "+ public class MainActivity extends Activity {}"}]
-    
+
     # Import review_pr inside to ensure patched version is tested
     from agent import review_pr
     verdict = review_pr(diff_files, use_tool_calling=False, repo="my-org/my-repo", token="my-token")
-    
+
     assert verdict["decision"] == "REQUEST_CHANGES"
     assert "Out of Scope" in verdict["relevance"]
     assert "outside the intended scope of this repository" in verdict["reason"]
@@ -117,7 +117,7 @@ def test_whitespace_comment_only_verdict_approve(mock_fetch_readme, mock_get, mo
     correctly resolves to APPROVE.
     """
     mock_fetch_readme.return_value = "A simple python project."
-    
+
     mock_get_response = MagicMock()
     mock_get_response.status_code = 200
     mock_get.return_value = mock_get_response
@@ -133,9 +133,9 @@ def test_whitespace_comment_only_verdict_approve(mock_fetch_readme, mock_get, mo
     mock_post.return_value = mock_post_response
 
     diff_files = [{"file_path": "main.py", "patch_text": "+ # just a comment"}]
-    
+
     from agent import review_pr
     verdict = review_pr(diff_files, use_tool_calling=False, repo="my-org/my-repo", token="my-token")
-    
+
     assert verdict["decision"] == "APPROVE"
     assert verdict["security_flags"] == []

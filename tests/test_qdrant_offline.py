@@ -15,7 +15,7 @@ def main():
             "patch_text": "@@ -1,5 +1,6 @@\n import os\n import sys\n+import tempfile\n import hmac\n import hashlib"
         }
     ]
-    
+
     # We expect a warning to be logged because Qdrant is offline
     print("Invoking review_pr...")
     try:

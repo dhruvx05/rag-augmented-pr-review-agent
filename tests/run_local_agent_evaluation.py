@@ -31,7 +31,7 @@ SCENARIOS = [
 +        super.onCreate(savedInstanceState);
 +        setContentView(R.layout.activity_main);
 +    }
-+    
++
 +    public int add(int a, int b) {
 +        return a + b;
 +    }
@@ -98,7 +98,7 @@ SCENARIOS = [
 # Mock repository README.md that describes a PR Review Agent
 MOCK_README_CONTENT = """
 # AI PR Review Agent
-This repository contains a local-first automated code review assistant. 
+This repository contains a local-first automated code review assistant.
 It integrates Ruff for Python linting, Bandit for security auditing, and uses Qdrant for semantic RAG search to understand code contexts.
 Features:
 - On-demand trigger on Pull Request events
@@ -135,7 +135,7 @@ def run_evaluation(mock_readme, mock_security, mock_lint):
         print(f"Description: {scenario['description']}")
         print(f"Simulating review for repository: {scenario['repo']}")
         print("Running LLM analysis (this triggers the real local Ollama)...")
-        
+
         try:
             # Trigger review_pr directly on the files
             # Note: We pass token="mock-token" so that the README fetching pathway is triggered
@@ -145,7 +145,7 @@ def run_evaluation(mock_readme, mock_security, mock_lint):
                 repo=scenario["repo"],
                 token="mock-token"
             )
-            
+
             print("\n>>> EVALUATION RESULT:")
             print(f"  * Verdict Decision : {verdict.get('decision')}")
             print(f"  * Relevance Label  : {verdict.get('relevance')}")
@@ -153,7 +153,7 @@ def run_evaluation(mock_readme, mock_security, mock_lint):
             print(f"  * Warning/Reason   : {verdict.get('reason')}")
             print(f"  * Security Flags   : {verdict.get('security_flags')}")
             print("-" * 80)
-            
+
         except Exception as exc:
             print(f"  ❌ Error during review execution: {exc}")
             print("-" * 80)

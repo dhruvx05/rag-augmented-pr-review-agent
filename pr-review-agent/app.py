@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
     try:
         import models  # noqa: F401
         Base.metadata.create_all(bind=engine)
-        
+
         # Safe migration for relevance and source columns
         try:
             from sqlalchemy import inspect, text
@@ -105,7 +105,7 @@ async def lifespan(app: FastAPI):
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE reviews ADD COLUMN archived BOOLEAN DEFAULT FALSE"))
                 logger.info("Database migration: Added 'archived' column to 'reviews' table.")
-            
+
             try:
                 with engine.begin() as conn:
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_reviews_decision ON reviews(decision)"))
@@ -574,7 +574,7 @@ def get_config():
 def save_config(req: ConfigSaveRequest):
     """Tests connection to GitHub using provided PAT, and saves it in backend memory."""
     global _active_repo, _active_token, _active_status, _indexing_state
-    
+
     # Try fetching open PRs to test connection
     from github_client import fetch_open_prs
     try:
@@ -641,7 +641,7 @@ def trigger_indexing(background_tasks: BackgroundTasks):
     """Queues background cloning & AST indexing for active connected repository."""
     if _active_status != "connected":
         raise HTTPException(status_code=400, detail="No active repository connection.")
-    
+
     if _indexing_state["status"] in ("cloning", "indexing"):
         return {"message": "Indexing is already running in background."}
 
@@ -654,7 +654,7 @@ def get_open_prs():
     """Lists open pull requests for the active connected repository."""
     if _active_status != "connected":
         raise HTTPException(status_code=400, detail="No active repository connection.")
-    
+
     from github_client import fetch_open_prs
     try:
         return fetch_open_prs(_active_repo, _active_token)

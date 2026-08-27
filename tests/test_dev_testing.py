@@ -29,7 +29,7 @@ def test_source_column_default_and_cleanup(test_db):
     )
     test_db.add(r1)
     test_db.commit()
-    
+
     # Assert default is webhook or None (depending on SQLite/SQLAlchemy lifecycle before commit/refresh)
     # Since we set server_default, the database assigns it upon insertion.
     test_db.refresh(r1)
@@ -47,7 +47,7 @@ def test_source_column_default_and_cleanup(test_db):
     )
     test_db.add(r2)
     test_db.commit()
-    
+
     # Assert database counts
     assert test_db.query(Review).count() == 2
     assert test_db.query(Review).filter_by(source="batch_test").count() == 1
@@ -56,7 +56,7 @@ def test_source_column_default_and_cleanup(test_db):
     # 3. Run cleanup with confirm=False (Dry Run)
     with patch.object(cleanup_module, "SessionLocal", return_value=test_db):
         run_cleanup(confirm=False)
-    
+
     # Verify no rows were deleted in dry run
     assert test_db.query(Review).count() == 2
 
