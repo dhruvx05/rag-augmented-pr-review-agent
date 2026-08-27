@@ -59,6 +59,19 @@ The LLM runs in a **multi-step tool-calling loop** (ReAct pattern): it observes 
 - **Vector Database**: Qdrant Cloud or Local Qdrant
 - **Relational Database**: Neon Hosted PostgreSQL / Supabase or Local PostgreSQL
 - **Static Analysis**: Ruff (Linting), Bandit (Security auditing)
+- **Containerization & Deployment**: Docker, `start.sh`, `render.yaml`, Render Web Service
+
+---
+
+## 🤖 Supported Models & Providers
+
+| Component | Cloud Provider & Model | Local Provider & Model | Specs & Capabilities |
+|---|---|---|---|
+| **LLM (Reasoning & Tools)** | **Groq API** (`qwen/qwen3.6-27b` / `llama-3.1-8b-instant`) | **Ollama** (`qwen2.5-coder:7b`) | 131k context window, native tool calling & JSON output |
+| **Code Embeddings (RAG)** | **Jina AI API** (`jina-embeddings-v2-base-en`) | **Ollama** (`nomic-embed-text`) | 768-dimensional AST code chunk vector embeddings |
+| **Vector Store** | **Qdrant Cloud** free tier | **Local Qdrant** (`:6333`) | Cosine similarity vector search with repository filtering |
+| **Relational DB** | **Neon Hosted PostgreSQL** | **Local PostgreSQL** (`:5432`) | SQLAlchemy ORM with unique commit idempotency constraint |
+
 ---
 
 ## Setup
