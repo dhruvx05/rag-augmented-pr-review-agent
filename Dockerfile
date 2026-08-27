@@ -24,8 +24,7 @@ COPY pr-review-agent/ /app/pr-review-agent/
 COPY dashboard.py /app/
 COPY index_repo.py /app/
 COPY start.sh /app/
-
-RUN chmod +x /app/start.sh
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
 
 WORKDIR /app
 
