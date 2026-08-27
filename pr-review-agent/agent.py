@@ -289,14 +289,16 @@ def review_pr(diff_files: list[dict], use_tool_calling: bool = True, repo: str |
         if not groq_key:
             raise RuntimeError("GROQ_API_KEY environment variable is missing for Groq LLM provider.")
     else:
-        ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
-        try:
-            requests.get(f"{ollama_host}/", timeout=3)
-        except requests.exceptions.RequestException:
-            raise RuntimeError(
-                f"Cannot connect to Ollama at {ollama_host}. "
-                "Ensure the Ollama service is running."
-            )
+        is_testing = bool(os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("TESTING"))
+        if not is_testing:
+            ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+            try:
+                requests.get(f"{ollama_host}/", timeout=3)
+            except requests.exceptions.RequestException:
+                raise RuntimeError(
+                    f"Cannot connect to Ollama at {ollama_host}. "
+                    "Ensure the Ollama service is running."
+                )
 
     diff_text = format_diff(diff_files)
 
