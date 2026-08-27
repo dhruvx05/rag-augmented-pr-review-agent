@@ -18,38 +18,29 @@ st.set_page_config(
 API_URL = os.environ.get("API_URL", "http://localhost:8000")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
-# ---------------------------------------------------------------------------
-# EVENT-DRIVEN REFRESH: only rerun when backend has new data
-# ---------------------------------------------------------------------------
-# Poll the lightweight /status endpoint every 10 seconds.
-# If last_review_at hasn't changed since our last check, do nothing.
-# Only call st.rerun() when a new review has been persisted or one is in progress.
+def handle_autorefresh():
+    if "last_seen_review_at" not in st.session_state:
+        st.session_state.last_seen_review_at = None
 
-if "last_seen_review_at" not in st.session_state:
-    st.session_state.last_seen_review_at = None
+    try:
+        _status_resp = requests.get(f"{API_URL}/status", timeout=2)
+        if _status_resp.status_code == 200:
+            _status = _status_resp.json()
+            _new_review_at = _status.get("last_review_at", "")
+            _in_progress = _status.get("in_progress", False)
 
-# Lightweight status check (just a timestamp, no heavy DB query)
-try:
-    _status_resp = requests.get(f"{API_URL}/status", timeout=2)
-    if _status_resp.status_code == 200:
-        _status = _status_resp.json()
-        _new_review_at = _status.get("last_review_at", "")
-        _in_progress = _status.get("in_progress", False)
-
-        if _in_progress:
-            # Review is actively running — poll fast (every 5s via autorefresh)
-            st_autorefresh(interval=5000, key="portal_autorefresh")
-        elif _new_review_at != st.session_state.last_seen_review_at:
-            # A new review just finished — update our cache and rerun to show it
-            st.session_state.last_seen_review_at = _new_review_at
-            st_autorefresh(interval=30000, key="portal_autorefresh")
+            if _in_progress:
+                st_autorefresh(interval=5000, key="portal_autorefresh")
+            elif _new_review_at != st.session_state.last_seen_review_at:
+                st.session_state.last_seen_review_at = _new_review_at
+                st_autorefresh(interval=30000, key="portal_autorefresh")
+            else:
+                st_autorefresh(interval=30000, key="portal_autorefresh")
         else:
-            # Nothing new — refresh every 30s just to stay alive, but won't change anything
             st_autorefresh(interval=30000, key="portal_autorefresh")
-    else:
-        st_autorefresh(interval=30000, key="portal_autorefresh")
-except Exception:
-    st_autorefresh(interval=30000, key="portal_autorefresh")
+    except Exception:
+        pass
+
 
 # Also check for in-progress jobs for the sidebar indicator
 in_progress_jobs = []
@@ -861,6 +852,9 @@ else:
         """,
         unsafe_allow_html=True
     )
+
+# Invoke auto-refresh polling safely after UI container has rendered
+handle_autorefresh()
 
 
 
