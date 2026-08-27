@@ -1,0 +1,31 @@
+# ==============================================================================
+# Render Blueprint Configuration
+# Single-container Web Service running FastAPI (8000) & Streamlit Dashboard (8501)
+# ==============================================================================
+
+services:
+  - type: web
+    name: rag-pr-review-agent
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: LLM_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false # Set in Render Dashboard secrets
+      - key: GROQ_MODEL
+        value: qwen/qwen3.6-27b
+      - key: DATABASE_URL
+        sync: false # Set Neon Postgres URL in Render Dashboard
+      - key: QDRANT_URL
+        sync: false # Set Qdrant Cloud URL in Render Dashboard
+      - key: QDRANT_API_KEY
+        sync: false # Set Qdrant Cloud API Key in Render Dashboard
+      - key: DEMO_MODE
+        value: "true"
+      - key: DRY_RUN
+        value: "false"
+      - key: API_URL
+        value: http://localhost:8000
