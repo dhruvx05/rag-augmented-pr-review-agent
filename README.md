@@ -1,9 +1,11 @@
 # RAG-Augmented Agentic PR Review Agent
 
 [![CI](https://github.com/dhruvx05/rag-augmented-pr-review-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/dhruvx05/rag-augmented-pr-review-agent/actions)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/dhruvx05/rag-augmented-pr-review-agent)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Render-success?style=for-the-badge&logo=render)](https://rag-pr-review-agent.onrender.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
+
+> 🌐 **Live SaaS Portal**: [https://rag-pr-review-agent.onrender.com](https://rag-pr-review-agent.onrender.com)
 
 A **ReAct-pattern agentic AI** that autonomously reviews GitHub Pull Requests. The LLM decides which tools to invoke (Ruff linter, Bandit security scanner), retrieves semantically relevant repository context through a **RAG pipeline** (Qdrant vector DB + Jina AI / `nomic-embed-text` embeddings), and renders structured markdown review comments — supporting both **Hosted Cloud Mode** (Groq API, Qdrant Cloud, Neon Postgres) and **Local Mode** (Ollama, Qdrant Local, Local Postgres).
 
