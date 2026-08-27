@@ -1,6 +1,9 @@
 import json
 import os
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 from tools import run_lint, run_security_scan
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
@@ -60,6 +63,10 @@ def _call_llm_api(messages: list[dict], tools: list[dict] | None = None, json_mo
             payload["tools"] = tools
         if json_mode:
             payload["response_format"] = {"type": "json_object"}
+            has_json = any("json" in (m.get("content") or "").lower() for m in messages)
+            if not has_json:
+                messages = list(messages) + [{"role": "user", "content": "Respond strictly with valid JSON format."}]
+                payload["messages"] = messages
 
         resp = requests.post(f"{groq_base}/chat/completions", headers=headers, json=payload, timeout=timeout)
         resp.raise_for_status()
