@@ -1,8 +1,6 @@
 import os
-import json
-import pytest
 from unittest.mock import patch, MagicMock
-from agent import review_pr, _call_llm_api, _get_query_embedding, run_agentic_loop
+from agent import _call_llm_api, _get_query_embedding, run_agentic_loop
 from app import load_demo_reviews_fixture
 
 def test_demo_reviews_fixture_loading():
