@@ -7,9 +7,97 @@ OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_CHAT_URL = f"{OLLAMA_HOST}/api/chat"
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 RAG_COLLECTION = "pr_reviews"
-LLM_MODEL = "qwen2.5-coder:7b"
-EMBED_MODEL = "nomic-embed-text"
+LLM_MODEL = os.environ.get("LLM_MODEL", "qwen2.5-coder:7b")
+EMBED_MODEL = os.environ.get("EMBED_MODEL", "nomic-embed-text")
 RAG_CONTEXT_CHAR_BUDGET = 4000
+
+
+def _get_llm_provider() -> str:
+    provider = os.environ.get("LLM_PROVIDER", "").lower()
+    if not provider:
+        groq_key = os.environ.get("GROQ_API_KEY", "")
+        provider = "groq" if groq_key else "ollama"
+    return provider
+
+
+def _get_embedding_provider() -> str:
+    provider = os.environ.get("EMBEDDING_PROVIDER", "").lower()
+    if not provider:
+        jina_key = os.environ.get("JINA_API_KEY", "")
+        provider = "jina" if jina_key else "ollama"
+    return provider
+
+
+def _get_qdrant_headers() -> dict:
+    headers = {}
+    qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
+    if qdrant_api_key:
+        headers["api-key"] = qdrant_api_key
+    return headers
+
+
+def _call_llm_api(messages: list[dict], tools: list[dict] | None = None, json_mode: bool = False, timeout: int = 60) -> tuple[dict, str]:
+    """
+    Unified LLM dispatch function supporting local Ollama and Groq OpenAI-compatible REST API endpoints.
+    Returns tuple of (assistant_message_dict, content_string).
+    """
+    provider = _get_llm_provider()
+    if provider == "groq":
+        groq_key = os.environ.get("GROQ_API_KEY", "")
+        groq_base = os.environ.get("GROQ_API_BASE", "https://api.groq.com/openai/v1")
+        groq_model = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
+
+        headers = {
+            "Authorization": f"Bearer {groq_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": groq_model,
+            "messages": messages,
+            "temperature": 0.2,
+        }
+        if tools:
+            payload["tools"] = tools
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+
+        resp = requests.post(f"{groq_base}/chat/completions", headers=headers, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        if "choices" in data and len(data["choices"]) > 0:
+            choice = data["choices"][0].get("message", {})
+        elif "message" in data:
+            choice = data["message"]
+        else:
+            choice = {"role": "assistant", "content": ""}
+
+        assistant_msg = {"role": "assistant", "content": choice.get("content") or ""}
+        if "tool_calls" in choice:
+            assistant_msg["tool_calls"] = choice["tool_calls"]
+        return assistant_msg, assistant_msg["content"]
+    else:
+        ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        ollama_chat_url = f"{ollama_host}/api/chat"
+        llm_model = os.environ.get("LLM_MODEL", "qwen2.5-coder:7b")
+
+        payload = {
+            "model": llm_model,
+            "messages": messages,
+            "stream": False,
+        }
+        if tools:
+            payload["tools"] = tools
+        if json_mode:
+            payload["format"] = "json"
+
+        resp = requests.post(ollama_chat_url, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        msg = resp.json().get("message", {})
+        assistant_msg = {"role": "assistant", "content": msg.get("content", "")}
+        if "tool_calls" in msg:
+            assistant_msg["tool_calls"] = msg["tool_calls"]
+        return assistant_msg, assistant_msg["content"]
+
 
 # --- Review verdict schema ---
 
@@ -43,21 +131,54 @@ def _extract_added_lines(diff_files: list[dict]) -> str:
 
 
 def _get_query_embedding(query_text: str) -> list[float] | None:
-    """Returns a vector embedding for the given text, or None on failure."""
-    try:
-        resp = requests.post(
-            f"{OLLAMA_HOST}/api/embeddings",
-            json={"model": EMBED_MODEL, "prompt": query_text},
-            timeout=10,
-        )
-        if resp.status_code in (400, 404):
-            print(f"[Warning] Embedding model '{EMBED_MODEL}' unavailable: {resp.text}")
+    """Returns a vector embedding for the given text, supporting local Ollama and hosted Jina AI."""
+    provider = _get_embedding_provider()
+    if provider == "jina":
+        jina_key = os.environ.get("JINA_API_KEY", "")
+        if not jina_key:
+            print("[Warning] JINA_API_KEY is not set. Skipping Jina embedding generation.")
             return None
-        resp.raise_for_status()
-        return resp.json()["embedding"]
-    except Exception as exc:
-        print(f"[Warning] Failed to generate query embedding: {exc}")
-        return None
+        jina_model = os.environ.get("JINA_EMBED_MODEL", "jina-embeddings-v2-base-en")
+        try:
+            resp = requests.post(
+                "https://api.jina.ai/v1/embeddings",
+                headers={
+                    "Authorization": f"Bearer {jina_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": jina_model,
+                    "input": [query_text[:4000]],
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            if "data" in data and len(data["data"]) > 0 and "embedding" in data["data"][0]:
+                return data["data"][0]["embedding"]
+            elif "embedding" in data:
+                return data["embedding"]
+            return None
+        except Exception as exc:
+            print(f"[Warning] Failed to generate Jina query embedding: {exc}")
+            return None
+    else:
+        ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        embed_model = os.environ.get("EMBED_MODEL", "nomic-embed-text")
+        try:
+            resp = requests.post(
+                f"{ollama_host}/api/embeddings",
+                json={"model": embed_model, "prompt": query_text},
+                timeout=10,
+            )
+            if resp.status_code in (400, 404):
+                print(f"[Warning] Embedding model '{embed_model}' unavailable: {resp.text}")
+                return None
+            resp.raise_for_status()
+            return resp.json().get("embedding")
+        except Exception as exc:
+            print(f"[Warning] Failed to generate query embedding: {exc}")
+            return None
 
 
 def retrieve_related_context(diff_files: list[dict], repo: str, k: int = 3) -> str:
@@ -79,14 +200,16 @@ def retrieve_related_context(diff_files: list[dict], repo: str, k: int = 3) -> s
         return ""
 
     try:
+        headers = _get_qdrant_headers()
         # Verify collection exists before searching.
-        check = requests.get(f"{QDRANT_URL}/collections/{RAG_COLLECTION}", timeout=5)
+        check = requests.get(f"{QDRANT_URL}/collections/{RAG_COLLECTION}", headers=headers, timeout=5)
         if check.status_code != 200:
             print(f"[Warning] Qdrant collection '{RAG_COLLECTION}' not found. Skipping RAG.")
             return ""
 
         resp = requests.post(
             f"{QDRANT_URL}/collections/{RAG_COLLECTION}/points/search",
+            headers=headers,
             json={
                 "vector": query_vector,
                 "filter": {"must": [{"key": "repo", "match": {"value": repo}}]},
@@ -152,17 +275,28 @@ def _is_whitespace_or_comment_only(diff_files: list[dict]) -> bool:
 # Public entry point
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
 def review_pr(diff_files: list[dict], use_tool_calling: bool = True, repo: str | None = None, token: str | None = None) -> dict:
     """
     Reviews a PR diff and returns a structured verdict dictionary.
     """
-    try:
-        requests.get(f"{OLLAMA_HOST}/", timeout=3)
-    except requests.exceptions.RequestException:
-        raise RuntimeError(
-            f"Cannot connect to Ollama at {OLLAMA_HOST}. "
-            "Ensure the Ollama service is running."
-        )
+    provider = _get_llm_provider()
+    if provider == "groq":
+        groq_key = os.environ.get("GROQ_API_KEY", "")
+        if not groq_key:
+            raise RuntimeError("GROQ_API_KEY environment variable is missing for Groq LLM provider.")
+    else:
+        ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        try:
+            requests.get(f"{ollama_host}/", timeout=3)
+        except requests.exceptions.RequestException:
+            raise RuntimeError(
+                f"Cannot connect to Ollama at {ollama_host}. "
+                "Ensure the Ollama service is running."
+            )
 
     diff_text = format_diff(diff_files)
 
@@ -318,29 +452,30 @@ def run_agentic_loop(diff_files: list[dict], diff_text: str, rag_context: str = 
         {"role": "user", "content": user_content},
     ]
 
-    max_iterations = 6
-    for _ in range(max_iterations):
-        resp = requests.post(
-            OLLAMA_CHAT_URL,
-            json={"model": LLM_MODEL, "messages": messages, "tools": _TOOL_DEFINITIONS, "stream": False},
-            timeout=60,
-        )
-        resp.raise_for_status()
+    max_iterations = 5
+    executed_calls = set()
 
-        message = resp.json().get("message", {})
-        assistant_msg: dict = {"role": "assistant", "content": message.get("content", "")}
-        if "tool_calls" in message:
-            assistant_msg["tool_calls"] = message["tool_calls"]
+    for iteration in range(max_iterations):
+        assistant_msg, content = _call_llm_api(messages, tools=_TOOL_DEFINITIONS, timeout=60)
         messages.append(assistant_msg)
 
-        tool_calls = message.get("tool_calls", [])
+        tool_calls = assistant_msg.get("tool_calls", [])
         if tool_calls:
             for tool_call in tool_calls:
+                call_key = (
+                    tool_call.get("function", {}).get("name"),
+                    str(tool_call.get("function", {}).get("arguments"))
+                )
+                if call_key in executed_calls:
+                    print(f"[Warning] Duplicate tool call detected in iteration {iteration + 1}: {call_key}. Breaking loop to prevent infinite cycle.")
+                    return run_fallback_review(diff_files, diff_text, rag_context, repo_readme)
+                executed_calls.add(call_key)
                 messages.append(_execute_tool_call(tool_call))
         else:
-            return parse_and_validate_verdict(message.get("content", ""), messages)
+            return parse_and_validate_verdict(content, messages)
 
-    raise RuntimeError("Agentic loop reached maximum iterations without producing a verdict.")
+    print(f"\n[Warning] Agentic loop reached maximum iterations ({max_iterations}) without producing a verdict. Falling back to deterministic review.")
+    return run_fallback_review(diff_files, diff_text, rag_context, repo_readme)
 
 
 # ---------------------------------------------------------------------------
@@ -384,21 +519,11 @@ def run_fallback_review(diff_files: list[dict], diff_text: str, rag_context: str
     ]
     user_content = "\n".join(user_parts)
 
-    resp = requests.post(
-        OLLAMA_CHAT_URL,
-        json={
-            "model": LLM_MODEL,
-            "messages": [
-                {"role": "system", "content": _AGENTIC_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content}
-            ],
-            "format": "json",
-            "stream": False,
-        },
-        timeout=60,
-    )
-    resp.raise_for_status()
-    content = resp.json().get("message", {}).get("content", "")
+    messages = [
+        {"role": "system", "content": _AGENTIC_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content}
+    ]
+    _, content = _call_llm_api(messages, json_mode=True, timeout=60)
     return parse_and_validate_verdict(content, [])
 
 
@@ -460,22 +585,12 @@ def parse_and_validate_verdict(content: str, messages: list, _retry: bool = Fals
 
         print(f"[Warning] Failed to parse verdict: {exc}. Retrying with schema reinforcement...")
 
-        retry_resp = requests.post(
-            OLLAMA_CHAT_URL,
-            json={
-                "model": LLM_MODEL,
-                "messages": messages + [{
-                    "role": "user",
-                    "content": (
-                        "Your previous response was not valid JSON or was missing required keys.\n"
-                        f"Respond ONLY with a JSON object matching this schema:\n{VERDICT_SCHEMA_HINT}"
-                    ),
-                }],
-                "format": "json",
-                "stream": False,
-            },
-            timeout=60,
-        )
-        retry_resp.raise_for_status()
-        retry_content = retry_resp.json().get("message", {}).get("content", "")
+        retry_messages = messages + [{
+            "role": "user",
+            "content": (
+                "Your previous response was not valid JSON or was missing required keys.\n"
+                f"Respond ONLY with a JSON object matching this schema:\n{VERDICT_SCHEMA_HINT}"
+            ),
+        }]
+        _, retry_content = _call_llm_api(retry_messages, json_mode=True, timeout=60)
         return parse_and_validate_verdict(retry_content, messages, _retry=True)

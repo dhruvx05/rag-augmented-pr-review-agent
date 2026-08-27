@@ -21,11 +21,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code into container
 COPY pr-review-agent/ /app/pr-review-agent/
+COPY dashboard.py /app/
+COPY index_repo.py /app/
+COPY start.sh /app/
 
-# Set working directory to the python application folder
-WORKDIR /app/pr-review-agent
+RUN chmod +x /app/start.sh
 
-EXPOSE 8000
+WORKDIR /app
 
-# Start FastAPI server
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8000 8501
+
+CMD ["/app/start.sh"]

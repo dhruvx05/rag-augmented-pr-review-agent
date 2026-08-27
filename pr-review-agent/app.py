@@ -16,6 +16,20 @@ logger = logging.getLogger("pr-review-agent")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 DRY_RUN = os.environ.get("DRY_RUN", "").lower() == "true"
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
+DEMO_MODE = os.environ.get("DEMO_MODE", "").lower() == "true" or not GITHUB_TOKEN
+
+
+def load_demo_reviews_fixture() -> list[dict]:
+    """Loads pre-recorded sample review fixtures from demo_reviews.json."""
+    import json
+    fixture_path = os.path.join(os.path.dirname(__file__), "demo_reviews.json")
+    if os.path.exists(fixture_path):
+        try:
+            with open(fixture_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as exc:
+            logger.warning(f"Failed to load demo reviews fixture: {exc}")
+    return []
 
 
 # In-memory set tracking commits currently under review.
@@ -104,6 +118,35 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Database migration check/run warning: {migration_exc}")
 
         logger.info("Database schema ready.")
+
+        if DEMO_MODE:
+            try:
+                from database import SessionLocal
+                from models import Review
+                db_seed = SessionLocal()
+                try:
+                    if db_seed.query(Review).count() == 0:
+                        fixtures = load_demo_reviews_fixture()
+                        for f in fixtures:
+                            db_seed.add(Review(
+                                id=f.get("id"),
+                                repo=f.get("repo", "demo-org/repo"),
+                                pr_number=f.get("pr_number", 1),
+                                commit_sha=f.get("commit_sha", "sha123"),
+                                decision=f.get("decision", "APPROVE"),
+                                summary=f.get("summary", ""),
+                                reason=f.get("reason", ""),
+                                relevance=f.get("relevance", "✅ Relevant"),
+                                source=f.get("source", "demo"),
+                                archived=f.get("archived", False),
+                            ))
+                        db_seed.commit()
+                        logger.info("Demo Mode: Seeded sample review fixtures into database.")
+                finally:
+                    db_seed.close()
+            except Exception as seed_exc:
+                logger.warning(f"Demo Mode seeding warning: {seed_exc}")
+
         logger.info("READY: PR-Review Agent backend service live")
     except Exception as exc:
         logger.critical(f"Database schema initialization failed: {exc}")
@@ -258,9 +301,17 @@ def health_check():
         "status": "healthy" if db_ok else "unhealthy",
         "database_connected": db_ok,
         "token_configured": bool(GITHUB_TOKEN),
+        "demo_mode": DEMO_MODE,
         "dry_run": DRY_RUN,
         "total_reviews": review_count,
+        "llm_provider": os.environ.get("LLM_PROVIDER", "groq" if os.environ.get("GROQ_API_KEY") else "ollama"),
     }
+
+
+@app.get("/demo/reviews")
+def get_demo_reviews():
+    """Returns pre-recorded sample PR review records for read-only demo mode."""
+    return load_demo_reviews_fixture()
 
 
 @app.get("/reviews/in-progress")
@@ -283,6 +334,7 @@ def get_status():
     return {
         "last_review_at": _last_review_at,
         "in_progress": len(_in_progress_commits) > 0,
+        "demo_mode": DEMO_MODE,
     }
 
 
@@ -311,6 +363,9 @@ def get_reviews(repo: str | None = None, decision: str | None = None, include_ar
             query = query.filter(or_(Review.archived.is_(False), Review.archived.is_(None)))
 
         reviews = query.order_by(Review.created_at.desc()).all()
+        if not reviews and DEMO_MODE:
+            return load_demo_reviews_fixture()
+
         return [
             {
                 "id": r.id,
@@ -329,6 +384,8 @@ def get_reviews(repo: str | None = None, decision: str | None = None, include_ar
         ]
     except Exception as exc:
         logger.error(f"Failed to query reviews: {exc}")
+        if DEMO_MODE:
+            return load_demo_reviews_fixture()
         raise HTTPException(status_code=500, detail="Database query failed.")
     finally:
         db.close()

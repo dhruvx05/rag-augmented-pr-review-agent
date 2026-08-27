@@ -8,12 +8,21 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    # We fallback to SQLite locally if no database is specified during tests,
-    # but the production/compose service requires Postgres
-    DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/pr_review_db"
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+if not DATABASE_URL:
+    # Fallback to SQLite in-memory during test runs if no database is specified
+    if os.environ.get("TESTING") == "true" or os.environ.get("PYTEST_CURRENT_TEST"):
+        DATABASE_URL = "sqlite:///:memory:"
+    else:
+        DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/pr_review_db"
+
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

@@ -98,52 +98,94 @@ def chunk_file(file_path: str) -> list[dict]:
             "content": code
         }]
 
+EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "").lower()
+JINA_API_KEY = os.environ.get("JINA_API_KEY", "")
+JINA_EMBED_MODEL = os.environ.get("JINA_EMBED_MODEL", "jina-embeddings-v2-base-en")
+QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
+
+if not EMBEDDING_PROVIDER:
+    EMBEDDING_PROVIDER = "jina" if JINA_API_KEY else "ollama"
+
+
+def get_qdrant_headers() -> dict:
+    headers = {}
+    if QDRANT_API_KEY:
+        headers["api-key"] = QDRANT_API_KEY
+    return headers
+
+
 def get_embedding(text: str, ollama_host: str) -> list[float]:
     """
-    Fetches the vector embedding representation from Ollama's nomic-embed-text model.
+    Fetches vector embedding representation from Ollama or Jina AI based on EMBEDDING_PROVIDER.
     """
-    url = f"{ollama_host}/api/embeddings"
-    payload = {
-        "model": "nomic-embed-text",
-        "prompt": text
-    }
-    response = requests.post(url, json=payload, timeout=20)
-    if response.status_code == 404 or response.status_code == 400:
-        raise RuntimeError(
-            "Model 'nomic-embed-text' not found or unsupported in Ollama.\n"
-            "Please run 'ollama pull nomic-embed-text' on your host first."
+    if EMBEDDING_PROVIDER == "jina":
+        if not JINA_API_KEY:
+            raise RuntimeError("JINA_API_KEY is missing for Jina embedding provider.")
+        resp = requests.post(
+            "https://api.jina.ai/v1/embeddings",
+            headers={
+                "Authorization": f"Bearer {JINA_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": JINA_EMBED_MODEL,
+                "input": [text[:4000]],
+            },
+            timeout=20,
         )
-    response.raise_for_status()
-    return response.json()["embedding"]
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
+        if data and "embedding" in data[0]:
+            return data[0]["embedding"]
+        raise RuntimeError("Jina AI returned empty embedding data.")
+    else:
+        url = f"{ollama_host}/api/embeddings"
+        payload = {
+            "model": "nomic-embed-text",
+            "prompt": text
+        }
+        response = requests.post(url, json=payload, timeout=20)
+        if response.status_code in (400, 404):
+            raise RuntimeError(
+                "Model 'nomic-embed-text' not found or unsupported in Ollama.\n"
+                "Please run 'ollama pull nomic-embed-text' on your host first."
+            )
+        response.raise_for_status()
+        return response.json()["embedding"]
+
 
 def init_qdrant_collection(qdrant_url: str, collection: str):
     """
     Ensures that the collection exists in Qdrant with the correct configurations.
     """
+    headers = get_qdrant_headers()
     check_url = f"{qdrant_url}/collections/{collection}"
-    resp = requests.get(check_url, timeout=5)
+    resp = requests.get(check_url, headers=headers, timeout=5)
     if resp.status_code == 200:
         print(f"Collection '{collection}' already exists in Qdrant.")
         return
 
     print(f"Creating Qdrant collection '{collection}'...")
+    dim = 768  # Matches nomic-embed-text / jina-embeddings-v2-base-en dimensions
     create_body = {
         "vectors": {
-            "size": 768, # nomic-embed-text vector dimensions
+            "size": dim,
             "distance": "Cosine"
         }
     }
-    create_resp = requests.put(check_url, json=create_body, timeout=5)
+    create_resp = requests.put(check_url, headers=headers, json=create_body, timeout=5)
     create_resp.raise_for_status()
     print(f"Collection '{collection}' created successfully.")
+
 
 def upsert_chunks_to_qdrant(qdrant_url: str, collection: str, points: list[dict]):
     """
     Upserts a batch of point vectors and payloads into Qdrant.
     """
+    headers = get_qdrant_headers()
     url = f"{qdrant_url}/collections/{collection}/points"
     payload = {"points": points}
-    resp = requests.put(url, json=payload, timeout=10)
+    resp = requests.put(url, headers=headers, json=payload, timeout=10)
     resp.raise_for_status()
 
 def main():

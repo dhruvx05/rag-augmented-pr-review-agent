@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1001,
+    "repo": "demo-org/payment-gateway",
+    "pr_number": 42,
+    "commit_sha": "a1b2c3d4e5f67890",
+    "decision": "APPROVE",
+    "relevance": "✅ Relevant",
+    "summary": "Implements idempotent webhooks processing and transaction retry logic for Stripe webhooks.",
+    "reason": "The changes correctly handle idempotency keys and prevent duplicate payment processing. All Ruff linter checks passed with 0 errors. Bandit security scan found no high-severity flaws.",
+    "source": "demo",
+    "archived": false,
+    "created_at": "2026-08-27T10:15:00Z"
+  },
+  {
+    "id": 1002,
+    "repo": "demo-org/auth-service",
+    "pr_number": 108,
+    "commit_sha": "f9e8d7c6b5a43210",
+    "decision": "REQUEST_CHANGES",
+    "relevance": "✅ Relevant",
+    "summary": "Adds JWT access token generation and refresh token rotation middleware.",
+    "reason": "Security vulnerability detected! A hardcoded fallback secret key was found in JWT configuration (`SECRET_KEY = 'supersecret'`). Bandit scan flagged B105 (hardcoded password).",
+    "source": "demo",
+    "archived": false,
+    "created_at": "2026-08-27T12:30:00Z"
+  },
+  {
+    "id": 1003,
+    "repo": "demo-org/user-dashboard",
+    "pr_number": 15,
+    "commit_sha": "1234567890abcdef",
+    "decision": "COMMENT_ONLY",
+    "relevance": "✅ Relevant",
+    "summary": "Refactors user profile avatar rendering component to support SVG placeholders.",
+    "reason": "Code quality check: Function `render_avatar` has high cognitive complexity and missing type hints on line 34. Ruff linter suggests adding standard docstrings.",
+    "source": "demo",
+    "archived": false,
+    "created_at": "2026-08-27T14:00:00Z"
+  }
+]

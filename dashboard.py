@@ -231,8 +231,10 @@ health = get_health_status()
 is_github_connected = False
 is_db_connected = False
 is_qdrant_connected = False
-is_ollama_connected = False
+is_llm_active = False
 is_kb_ready = False
+is_demo_mode = False
+llm_provider_name = "Ollama"
 
 if config:
     is_github_connected = config.get("status") == "connected"
@@ -240,9 +242,10 @@ if config:
 
 if health:
     is_db_connected = health.get("database_connected", False)
-    # Check if Qdrant is connected (if database is connected and we can fetch collections)
     is_qdrant_connected = health.get("database_connected", False)
-    is_ollama_connected = health.get("token_configured", False) or True  # Default fallback if Ollama active
+    is_llm_active = True
+    is_demo_mode = health.get("demo_mode", False)
+    llm_provider_name = health.get("llm_provider", "ollama").upper()
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +256,20 @@ with st.sidebar:
     st.markdown("## System Status")
     st.markdown("Real-time telemetry and infrastructure status:")
 
+    if is_demo_mode:
+        st.markdown(
+            """
+            <div style="background-color: #1e1b4b; border: 1px solid #6366f1; border-radius: 8px; padding: 10px; margin-bottom: 12px; text-align: center;">
+                <span style="color: #818cf8; font-weight: 700; font-size: 13px;">🎮 DEMO MODE ACTIVE</span><br>
+                <span style="color: #c7d2fe; font-size: 11px;">Read-only mode with pre-recorded review traces</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
     # GitHub Status
-    gh_class = "dot-green" if is_github_connected else "dot-red"
-    gh_label = "Connected" if is_github_connected else "Disconnected"
+    gh_class = "dot-green" if is_github_connected else ("dot-yellow" if is_demo_mode else "dot-red")
+    gh_label = "Connected" if is_github_connected else ("Demo Mode" if is_demo_mode else "Disconnected")
     st.markdown(f'<div class="saas-card" style="padding: 12px; margin-bottom: 12px;">'
                 f'<span class="status-dot {gh_class}"></span>GitHub: <b>{gh_label}</b>'
                 f'</div>', unsafe_allow_html=True)
@@ -271,25 +285,24 @@ with st.sidebar:
     qd_class = "dot-green" if is_qdrant_connected else "dot-red"
     qd_label = "Connected" if is_qdrant_connected else "Offline"
     st.markdown(f'<div class="saas-card" style="padding: 12px; margin-bottom: 12px;">'
-                f'<span class="status-dot {qd_class}"></span>Qdrant: <b>{qd_label}</b>'
+                f'<span class="status-dot {qd_class}"></span>Qdrant Vector DB: <b>{qd_label}</b>'
                 f'</div>', unsafe_allow_html=True)
 
-    # Ollama Status
-    ol_class = "dot-green" if is_ollama_connected else "dot-yellow"
-    ol_label = "Active" if is_ollama_connected else "Warning"
+    # LLM Provider Status
+    ol_class = "dot-green" if is_llm_active else "dot-red"
     st.markdown(f'<div class="saas-card" style="padding: 12px; margin-bottom: 12px;">'
-                f'<span class="status-dot {ol_class}"></span>Ollama: <b>{ol_label}</b>'
+                f'<span class="status-dot {ol_class}"></span>LLM Provider: <b>{llm_provider_name}</b>'
                 f'</div>', unsafe_allow_html=True)
 
     # Knowledge Base Status
-    kb_class = "dot-green" if is_kb_ready else "dot-red"
-    kb_label = "Indexed" if is_kb_ready else "Not Indexed"
+    kb_class = "dot-green" if is_kb_ready else "dot-yellow"
+    kb_label = "Indexed" if is_kb_ready else ("Demo Ready" if is_demo_mode else "Not Indexed")
     st.markdown(f'<div class="saas-card" style="padding: 12px; margin-bottom: 12px;">'
                 f'<span class="status-dot {kb_class}"></span>Knowledge Base: <b>{kb_label}</b>'
                 f'</div>', unsafe_allow_html=True)
 
     st.markdown("---")
-    st.caption("🤖 PR Review Agent v1.0.0 — Production Build")
+    st.caption("🤖 PR Review Agent v1.0.0 — Live Demo Build")
 
 
 # ---------------------------------------------------------------------------
@@ -302,13 +315,7 @@ if not is_github_connected:
         <div class="welcome-card">
             <h3>👋 Welcome to the PR Review Agent Portal!</h3>
             <p>This SaaS portal automates code quality, security audits, and RAG context reviews directly on your PRs.</p>
-            <p><b>Get started in minutes by following these simple steps:</b></p>
-            <ol>
-                <li>🔌 <b>Connect GitHub Repository</b> — Authenticate with your GitHub Personal Access Token (PAT).</li>
-                <li>🧠 <b>Build AI Knowledge Base (RAG)</b> — Allow the agent to parse, embed, and index your repository code.</li>
-                <li>📥 <b>Load Pull Requests</b> — List your open branch changes directly from the UI.</li>
-                <li>🤖 <b>Review Pull Requests</b> — Trigger high-quality, local LLM-reviews and post comments.</li>
-            </ol>
+            <p><b>🎮 Demo Mode Active:</b> You can inspect pre-recorded example reviews below without connecting a GitHub account, or connect your own repo to run live reviews.</p>
         </div>
         """,
         unsafe_allow_html=True
